@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -7,6 +6,7 @@ from tvsfw import GaussianPolynomial, WeightedIndicatorFunction, SimpleFunction
 
 
 std = 0.1
+alpha = 1e-3
 
 E1 = Disk(np.array([-0.4, 0]), 0.3)
 E2 = Disk(np.array([0.4, -0.3]), 0.2)
@@ -21,17 +21,7 @@ def aux(x, i, j):
     return np.exp(-np.linalg.norm(x - grid[i, j, :, np.newaxis], axis=0) ** 2 / (2 * std ** 2))
 
 
-def compute_obs(f):
-    y = np.zeros((30, 30))
-    for i in range(grid.shape[0]):
-        for j in range(grid.shape[1]):
-            for atom in f.atoms:
-                y[i, j] += atom.weight * atom.support.compute_weighted_area(lambda x: f(x, i, j))
-
-    return y
-
-
-y = compute_obs(u)
+y = u.compute_obs(grid, aux)
 noise = np.random.normal(0, 0.002, y.shape)
 noisy_y = y + noise
 
@@ -44,4 +34,26 @@ eta = GaussianPolynomial(X_coarse, Y_coarse, y, std)
 E, _, _ = compute_cheeger(eta, max_tri_area=0.001, max_primal_dual_iter=20000, max_iter=500, convergence_tol=1e-3)
 
 u_hat = SimpleFunction([WeightedIndicatorFunction(0, E)])
-u_hat.fit_weights()
+u_hat.fit_weights(y, aux, alpha / y.size)
+
+lala = u_hat.compute_obs(grid, aux)
+new_eta = GaussianPolynomial(X_coarse, Y_coarse, lala - y, std)
+
+E, _, _ = compute_cheeger(new_eta, max_tri_area=0.001, max_primal_dual_iter=20000, max_iter=500, convergence_tol=1e-3)
+
+u_hat.extend_support(E)
+u_hat.fit_weights(y, aux, alpha / y.size)
+
+for atom in u.atoms:
+    simple_set = atom.support
+    x_curve = np.append(simple_set.boundary_vertices[:, 0], simple_set.boundary_vertices[0, 0])
+    y_curve = np.append(simple_set.boundary_vertices[:, 1], simple_set.boundary_vertices[0, 1])
+    plt.plot(x_curve, y_curve, color='black')
+
+for atom in u_hat.atoms:
+    simple_set = atom.support
+    x_curve = np.append(simple_set.boundary_vertices[:, 0], simple_set.boundary_vertices[0, 0])
+    y_curve = np.append(simple_set.boundary_vertices[:, 1], simple_set.boundary_vertices[0, 1])
+    plt.plot(x_curve, y_curve, color='red')
+
+plt.show()
