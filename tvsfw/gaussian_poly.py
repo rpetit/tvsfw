@@ -1,6 +1,6 @@
 import numpy as np
 
-from math import exp
+from math import exp, erf, sqrt
 from numba import jit, prange
 
 
@@ -33,6 +33,20 @@ def generate_func2(x_grid, y_grid, weights, std):
     return aux
 
 
+def generate_func3(x_grid, y_grid, weights, std):
+    @jit(nopython=True, parallel=True)
+    def aux(x, res):
+        for k in prange(x.shape[0]):
+            for i in prange(weights.shape[0]):
+                for j in prange(weights.shape[1]):
+                    res[k, 0] += weights[i, j] * exp(-(x[k, 1] - y_grid[i, j]) ** 2 / (2 * std ** 2)) * \
+                                 sqrt(2) * std * erf((x[k, 0] - x_grid[i, j]) / (sqrt(2) * std))
+                    res[k, 1] += weights[i, j] * exp(-(x[k, 0] - x_grid[i, j]) ** 2 / (2 * std ** 2)) * \
+                                 sqrt(2) * std * erf((x[k, 1] - y_grid[i, j]) / (sqrt(2) * std))
+
+    return aux
+
+
 class GaussianPolynomial:
     def __init__(self, x_grid, y_grid, weights, std):
         self.x_grid = x_grid
@@ -42,6 +56,7 @@ class GaussianPolynomial:
 
         self._aux1 = generate_func1(self.x_grid, self.y_grid, self.weights, self.std)
         self._aux2 = generate_func2(self.x_grid, self.y_grid, self.weights, self.std)
+        self._aux3 = generate_func3(self.x_grid, self.y_grid, self.weights, self.std)
 
     def __call__(self, x):
         if x.ndim == 1:
@@ -49,4 +64,9 @@ class GaussianPolynomial:
         else:
             res = np.zeros(x.shape[1])
             self._aux2(x, res)
+        return res
+
+    def eval_field(self, x):
+        res = np.zeros((x.shape[0], 2))
+        self._aux3(x, res)
         return res
