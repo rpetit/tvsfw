@@ -24,7 +24,7 @@ def generate_func1(x_grid, y_grid, weights, std):
 def generate_func2(x_grid, y_grid, weights, std):
     @jit(nopython=True, parallel=True)
     def aux(x, res):
-        for k in prange(x.shape[1]):
+        for k in prange(x.shape[0]):
             for i in prange(weights.shape[0]):
                 for j in prange(weights.shape[1]):
                     squared_norm = (x[k, 0] - x_grid[i, j]) ** 2 + (x[k, 1] - y_grid[i, j]) ** 2
