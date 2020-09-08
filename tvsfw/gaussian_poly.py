@@ -1,6 +1,6 @@
 import numpy as np
 
-from math import exp, erf, sqrt
+from math import exp
 from numba import jit, prange
 
 
@@ -27,7 +27,7 @@ def generate_func2(x_grid, y_grid, weights, std):
         for k in prange(x.shape[1]):
             for i in prange(weights.shape[0]):
                 for j in prange(weights.shape[1]):
-                    squared_norm = (x[0, k] - x_grid[i, j]) ** 2 + (x[1, k] - y_grid[i, j]) ** 2
+                    squared_norm = (x[k, 0] - x_grid[i, j]) ** 2 + (x[k, 1] - y_grid[i, j]) ** 2
                     res[k] += weights[i, j] * exp(-squared_norm / (2 * std ** 2))
 
     return aux
@@ -37,12 +37,11 @@ def generate_func3(x_grid, y_grid, weights, std):
     @jit(nopython=True, parallel=True)
     def aux(x, res):
         for k in prange(x.shape[0]):
-            for i in prange(weights.shape[0]):
-                for j in prange(weights.shape[1]):
-                    res[k, 0] += weights[i, j] * exp(-(x[k, 1] - y_grid[i, j]) ** 2 / (2 * std ** 2)) * \
-                                 sqrt(2) * std * erf((x[k, 0] - x_grid[i, j]) / (sqrt(2) * std))
-                    res[k, 1] += weights[i, j] * exp(-(x[k, 0] - x_grid[i, j]) ** 2 / (2 * std ** 2)) * \
-                                 sqrt(2) * std * erf((x[k, 1] - y_grid[i, j]) / (sqrt(2) * std))
+            for l in prange(x.shape[1]):
+                for i in prange(weights.shape[0]):
+                    for j in prange(weights.shape[1]):
+                        squared_norm = (x[k, l, 0] - x_grid[i, j]) ** 2 + (x[k, l, 1] - y_grid[i, j]) ** 2
+                        res[k, l] += weights[i, j] * exp(-squared_norm / (2 * std ** 2))
 
     return aux
 
@@ -61,12 +60,10 @@ class GaussianPolynomial:
     def __call__(self, x):
         if x.ndim == 1:
             res = self._aux1(x)
-        else:
-            res = np.zeros(x.shape[1])
+        elif x.ndim == 2:
+            res = np.zeros(x.shape[0])
             self._aux2(x, res)
-        return res
-
-    def eval_field(self, x):
-        res = np.zeros((x.shape[0], 2))
-        self._aux3(x, res)
+        else:
+            res = np.zeros((x.shape[0], x.shape[1]))
+            self._aux3(x, res)
         return res

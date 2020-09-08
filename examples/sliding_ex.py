@@ -13,13 +13,13 @@ E1 = Disk(np.array([-0.4, 0.3]), 0.3, max_tri_area=0.01, num_vertices=30)
 E2 = Disk(np.array([0.4, -0.4]), 0.2, max_tri_area=0.01, num_vertices=20)
 u = SimpleFunction([WeightedIndicatorFunction(1, E1), WeightedIndicatorFunction(1, E2)])
 
-x_coarse, y_coarse = np.linspace(-1, 1, 25), np.linspace(-1, 1, 25)
+x_coarse, y_coarse = np.linspace(-1, 1, 20), np.linspace(-1, 1, 20)
 X_coarse, Y_coarse = np.meshgrid(x_coarse, y_coarse)
 grid = np.stack([X_coarse, Y_coarse], axis=2)
 
 
 def aux(x, i, j):
-    return np.exp(-np.linalg.norm(x - grid[i, j, :, np.newaxis], axis=0) ** 2 / (2 * std ** 2))
+    return np.exp(-np.linalg.norm(x - np.expand_dims(grid[i, j], axis=tuple(np.arange(x.ndim-1))), axis=-1) ** 2 / (2 * std ** 2))
 
 
 y = u.compute_obs(aux, (grid.shape[0], grid.shape[1]))

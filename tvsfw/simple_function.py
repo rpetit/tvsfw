@@ -2,8 +2,7 @@ import numpy as np
 
 from copy import deepcopy
 from sklearn.linear_model import Lasso
-from pymesh import form_mesh
-from pycheeger import SimpleSet, integrate_on_triangle
+from pycheeger import SimpleSet, integrate_on_triangles
 
 
 class WeightedIndicatorFunction:
@@ -111,10 +110,10 @@ class SimpleFunction:
                     supports[k].boundary_vertices = former_supports[k].boundary_vertices - t * grad_supports[k]
                     supports[k].mesh_vertices[supports[k].boundary_vertices_indices] = supports[k].boundary_vertices
 
-                    for l in supports[k].boundary_faces_indices:
-                        for i in range(obs.shape[0]):
-                            for j in range(obs.shape[1]):
-                                obs[i, j, k, l] = integrate_on_triangle(lambda x: aux(x, i, j), supports[k].mesh_vertices[supports[k].mesh_faces[l]])
+                    for i in range(obs.shape[0]):
+                        for j in range(obs.shape[1]):
+                            obs[i, j, k, supports[k].boundary_faces_indices] = integrate_on_triangles(lambda x: aux(x, i, j),
+                                                                                                      supports[k].mesh_vertices[supports[k].mesh_faces[supports[k].boundary_faces_indices]])
 
                 perimeters = np.array([support.compute_perimeter() for support in supports])
 
