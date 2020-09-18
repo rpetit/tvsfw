@@ -1,66 +1,107 @@
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pycheeger import compute_cheeger, Disk, SimpleSet
-from tvsfw import GaussianPolynomial, WeightedIndicatorFunction, SimpleFunction
+from math import sqrt, log
+from pycheeger import compute_cheeger, Disk, plot_simple_functions
+from tvsfw import GaussianPolynomial, SampledGaussianKernel, WeightedIndicatorFunction, SimpleFunction
 
 
 std = 0.1
-alpha = 1e-4
 
-E1 = Disk(np.array([-0.4, 0.3]), 0.3, max_tri_area=0.01, num_vertices=30)
-E2 = Disk(np.array([0.4, -0.4]), 0.2, max_tri_area=0.01, num_vertices=20)
+E1 = Disk(np.array([-0.4, 0.3]), 0.3, max_tri_area=0.01, num_vertices=40)
+E2 = Disk(np.array([0.2, -0.1]), 0.2, max_tri_area=0.01, num_vertices=30)
 u = SimpleFunction([WeightedIndicatorFunction(1, E1), WeightedIndicatorFunction(1, E2)])
 
-x_coarse, y_coarse = np.linspace(-1, 1, 20), np.linspace(-1, 1, 20)
+x_coarse, y_coarse = np.linspace(-1, 1, 30), np.linspace(-1, 1, 30)
 X_coarse, Y_coarse = np.meshgrid(x_coarse, y_coarse)
 grid = np.stack([X_coarse, Y_coarse], axis=2)
 
+phi = SampledGaussianKernel(grid, std)
 
-def aux(x, i, j):
-    return np.exp(-np.linalg.norm(x - np.expand_dims(grid[i, j], axis=tuple(np.arange(x.ndim-1))), axis=-1) ** 2 / (2 * std ** 2))
+y = u.compute_obs(phi, version=0)
 
+vmax = np.max(y)
 
-y = u.compute_obs(aux, (grid.shape[0], grid.shape[1]))
-
-noise = np.random.normal(0, 1e-3, y.shape)
+std_noise = 1e-3
+noise = np.random.normal(0, std_noise, y.shape)
 noisy_y = y + noise
 
-plt.imshow(noisy_y, cmap='gray', origin='lower')
-plt.axis('off')
+alpha = sqrt(2 * log(y.size)) * std_noise
+
+fig, ax = plt.subplots()
+
+im = ax.imshow(noisy_y, cmap='bwr', origin='lower', vmin=-vmax, vmax=vmax)
+ax.axis('off')
+
+fig.colorbar(im, ax=ax)
+
 plt.show()
 
-eta = GaussianPolynomial(X_coarse, Y_coarse, y, std)
+start = time.time()
 
-E, _, _ = compute_cheeger(eta, max_tri_area=0.001, max_primal_dual_iter=20000, max_iter=500, convergence_tol=1e-3)
+eta = GaussianPolynomial(grid, y, std)
+
+E, _, _ = compute_cheeger(eta, max_tri_area=0.001, max_primal_dual_iter=20000, max_iter=500, convergence_tol=1e-2)
 
 u_hat = SimpleFunction([WeightedIndicatorFunction(0, E)])
-u_hat.fit_weights(noisy_y, aux, alpha / y.size)
-u_hat.perform_sliding(noisy_y, aux, alpha, 1e-2, 100, "coucou")
+u_hat.fit_weights(noisy_y, phi, alpha / y.size)
+obj_tab, grad_norm_tab = u_hat.perform_sliding(noisy_y, phi, alpha, 1.0, 500, 1e-7)
 
-new_y = u_hat.compute_obs(aux, (grid.shape[0], grid.shape[1]))
-new_eta = GaussianPolynomial(X_coarse, Y_coarse, new_y - noisy_y, std)
+print(u_hat.atoms[0].weight)
 
-E, _, _ = compute_cheeger(new_eta, max_tri_area=0.001, max_primal_dual_iter=20000, max_iter=500, convergence_tol=1e-3)
+plt.plot(obj_tab)
+plt.show()
 
-u_hat.extend_support(E)
-u_hat.fit_weights(noisy_y, aux, alpha / y.size)
-u_hat.perform_sliding(noisy_y, aux, alpha, 1e-2, 100, "coucou")
+plt.plot(grad_norm_tab)
+plt.show()
 
-for atom in u.atoms:
-    simple_set = atom.support
-    x_curve = np.append(simple_set.boundary_vertices[:, 0], simple_set.boundary_vertices[0, 0])
-    y_curve = np.append(simple_set.boundary_vertices[:, 1], simple_set.boundary_vertices[0, 1])
-    plt.plot(x_curve, y_curve, color='black')
+plot_simple_functions(u, u_hat)
 
-for atom in u_hat.atoms:
-    simple_set = atom.support
-    x_curve = np.append(simple_set.boundary_vertices[:, 0], simple_set.boundary_vertices[0, 0])
-    y_curve = np.append(simple_set.boundary_vertices[:, 1], simple_set.boundary_vertices[0, 1])
-    plt.plot(x_curve, y_curve, color='red')
+new_y = u_hat.compute_obs(phi, version=0)
 
-plt.xlim(-1, 1)
-plt.ylim(-1, 1)
-plt.axis('equal')
+fig, ax = plt.subplots()
+
+im = ax.imshow(new_y - noisy_y, cmap='bwr', origin='lower', vmin=-vmax, vmax=vmax)
+ax.axis('off')
+
+fig.colorbar(im, ax=ax)
 
 plt.show()
+
+new_eta = GaussianPolynomial(grid, new_y - noisy_y, std)
+
+E, _, _ = compute_cheeger(new_eta, max_tri_area=0.001, max_primal_dual_iter=20000, max_iter=500, convergence_tol=1e-2)
+
+u_hat.extend_support(E)
+
+u_hat.fit_weights(noisy_y, phi, alpha / y.size)
+obj_tab, grad_norm_tab = u_hat.perform_sliding(noisy_y, phi, alpha, 0.5, 500, 1e-7)
+
+print([atom.weight for atom in u_hat.atoms])
+
+final_y = u_hat.compute_obs(phi, version=0)
+
+fig, ax = plt.subplots()
+
+im = ax.imshow(final_y - y, cmap='bwr', origin='lower', vmin=-vmax, vmax=vmax)
+ax.axis('off')
+
+fig.colorbar(im, ax=ax)
+
+plt.show()
+
+end = time.time()
+
+print(end - start)
+
+plt.plot(obj_tab)
+plt.show()
+
+plt.plot(grad_norm_tab)
+plt.show()
+
+plot_simple_functions(u, u_hat)
+
+u_hat.fit_weights(noisy_y, phi, alpha / y.size)
+print([atom.weight for atom in u_hat.atoms])
