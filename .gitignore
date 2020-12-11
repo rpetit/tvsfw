@@ -125,3 +125,7 @@ dmypy.json
 
 # PyCharm stuff
 .idea/
+
+experiments/exp1/figures/
+
+experiments/exp2/figures/

@@ -16,7 +16,7 @@ def generate_func1(grid, std):
     return aux
 
 
-class SampledGaussianKernel:
+class SampledGaussianFilter:
     def __init__(self, grid, std):
         self.grid = grid
         self.std = std
@@ -32,6 +32,9 @@ class SampledGaussianKernel:
             res = np.zeros((x.shape[0], self.grid.shape[0], self.grid.shape[1]))
             self._aux(x, res)
         return res
+
+    def apply_adjoint(self, weights):
+        return GaussianPolynomial(self.grid, weights, self.std)
 
 
 def generate_func2(grid, weights, std):
