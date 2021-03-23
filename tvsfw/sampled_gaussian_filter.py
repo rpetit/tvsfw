@@ -1,6 +1,6 @@
 import numpy as np
 
-from math import exp
+from math import exp, sqrt, pi
 from numba import jit, prange
 
 
@@ -17,9 +17,10 @@ def generate_func1(grid, std):
 
 
 class SampledGaussianFilter:
-    def __init__(self, grid, std):
+    def __init__(self, grid, std, normalization=False):
         self.grid = grid
         self.std = std
+        self.normalization = normalization
 
         self._aux = generate_func1(self.grid, self.std)
 
@@ -31,6 +32,8 @@ class SampledGaussianFilter:
         else:
             res = np.zeros((x.shape[0], self.grid.shape[0], self.grid.shape[1]))
             self._aux(x, res)
+        if self.normalization:
+            res = res / (2*pi * self.std**2)
         return res
 
     def apply_adjoint(self, weights):

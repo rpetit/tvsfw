@@ -78,10 +78,6 @@ class SimpleFunction:
 
         obs = self.compute_obs(f, version=1)
 
-        best_obj = None
-        best_weights = None
-        best_supports = None
-
         weights = np.array([atom.weight for atom in self.atoms])
         supports = [atom.support for atom in self.atoms]
         perimeters = np.array([support.compute_perimeter() for support in supports])
@@ -90,6 +86,10 @@ class SimpleFunction:
         diff_obs = y_hat - y
         obj = 0.5 * np.sum(diff_obs ** 2) + reg_param * np.sum(np.abs(weights) * perimeters)
         obj_tab.append(obj)
+
+        best_obj = obj
+        best_weights = weights.copy()
+        best_supports = deepcopy(supports)
 
         while not convergence and n_iter < max_iter:
             grad_weights = []
@@ -134,8 +134,8 @@ class SimpleFunction:
                 diff_obs = y_hat - y
                 obj = 0.5 * np.sum(diff_obs ** 2) + reg_param * np.sum(np.abs(weights) * perimeters)
 
-                # ag_condition = (obj <= former_obj - alpha * t * grad_norm_squared)
-                # t = beta * t
+                ag_condition = (obj <= former_obj - alpha * t * grad_norm_squared)
+                t = beta * t
 
             if n_iter > 0:
                 weights = weights + n_iter / (n_iter + 3) * (weights - former_weights)
@@ -169,6 +169,7 @@ class SimpleFunction:
                 plt.show()
                 plt.plot(grad_norm_tab)
                 plt.show()
+
                 for i in range(self.num_atoms):
                     self.atoms[i].support.resample_boundary(num_points, max_tri_area)
 
@@ -185,8 +186,8 @@ class SimpleFunction:
             else:
                 obj_tab.append(obj)
 
-            if obj_tab[-1] > obj_tab[0]:
-                convergence = True
+            # if obj_tab[-1] > obj_tab[0]:
+            #     convergence = True
 
             if best_obj is None or obj < best_obj:
                 best_obj = obj
