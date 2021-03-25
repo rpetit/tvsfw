@@ -164,12 +164,6 @@ class SimpleFunction:
             convergence = grad_norm_squared <= eps_stop
 
             if n_iter % iter_remesh == 0:
-                print(n_iter)
-                plt.plot(obj_tab)
-                plt.show()
-                plt.plot(grad_norm_tab)
-                plt.show()
-
                 for i in range(self.num_atoms):
                     self.atoms[i].support.resample_boundary(num_points, max_tri_area)
 
@@ -185,9 +179,6 @@ class SimpleFunction:
                 obj_tab.append(obj)
             else:
                 obj_tab.append(obj)
-
-            # if obj_tab[-1] > obj_tab[0]:
-            #     convergence = True
 
             if best_obj is None or obj < best_obj:
                 best_obj = obj

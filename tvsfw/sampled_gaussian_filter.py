@@ -1,6 +1,6 @@
 import numpy as np
 
-from math import exp, sqrt, pi
+from math import exp, pi
 from numba import jit, prange
 
 
