@@ -135,8 +135,8 @@ def plot_obs(y, cmap, v_abs_max=None, save_path=None):
 
     im = ax.imshow(y, origin='lower', cmap=cmap, vmin=-v_abs_max, vmax=v_abs_max)
 
-    # cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, format=tick.FormatStrFormatter('%.2f'))
-    # cbar.ax.tick_params(labelsize=30)
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, format=tick.FormatStrFormatter('%.2f'))
+    cbar.ax.tick_params(labelsize=30)
 
     ax.axis('off')
 
@@ -146,6 +146,7 @@ def plot_obs(y, cmap, v_abs_max=None, save_path=None):
         plt.savefig(save_path, dpi=300, bbox_inches='tight', pad_inches=0)
 
     plt.show()
+
 
 def plot_iter(u_hat_tab, u, m, cbar_params, save_path=None):
     n_iter = len(u_hat_tab)
