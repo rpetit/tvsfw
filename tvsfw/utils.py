@@ -133,7 +133,9 @@ def plot_obs(y, cmap, v_abs_max=None, save_path=None):
     fig, ax = plt.subplots(figsize=(7, 7))
     ax.set_aspect('equal')
 
-    im = ax.imshow(y, origin='lower', cmap=cmap, vmin=-v_abs_max, vmax=v_abs_max)
+    n = np.int(np.sqrt(y.size))
+
+    im = ax.imshow(y.reshape((n, n)), origin='lower', cmap=cmap, vmin=-v_abs_max, vmax=v_abs_max)
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, format=tick.FormatStrFormatter('%.2f'))
     cbar.ax.tick_params(labelsize=30)

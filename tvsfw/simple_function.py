@@ -42,17 +42,25 @@ class SimpleFunction:
         return [atom.support.boundary_vertices for atom in self.atoms]
 
     def compute_obs(self, f, version=0):
-        obs = [atom.support.compute_weighted_area_tab(f) for atom in self.atoms]
+        if self.num_atoms == 0:
+            return np.zeros(f.grid_size)
 
-        if version == 0:
-            if len(obs) == 0:
-                res = 0
-            else:
-                res = np.zeros(obs[0].shape[1:])
+        max_num_triangles = max(len(atom.support.mesh_faces) for atom in self.atoms)
+        meshes = np.zeros((self.num_atoms, max_num_triangles, 3, 2))
+        obs = np.zeros((self.num_atoms, max_num_triangles, f.grid_size))
+
+        for i in range(self.num_atoms):
+            support_i = self.atoms[i].support
+            meshes[i, :len(support_i.mesh_faces)] = support_i.mesh_vertices[support_i.mesh_faces]
+
+        f._triangle_aux(meshes, obs)
+
+        if version == 1:
+            res = [obs[i, :len(self.atoms[i].support.mesh_faces), :] for i in range(self.num_atoms)]
+        else:
+            res = np.zeros(f.grid_size)
             for i in range(self.num_atoms):
                 res += self.atoms[i].weight * np.sum(obs[i], axis=0)
-        else:
-            res = obs
 
         return res
 

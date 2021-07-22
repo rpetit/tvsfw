@@ -1,8 +1,8 @@
 import numpy as np
 
-from math import copysign, fabs
+from math import copysign
 from .simple_function import SimpleFunction, WeightedIndicatorFunction
-from pycheeger import resample, SimpleSet
+from pycheeger import resample, SimpleSet, plot_simple_set
 
 
 sign = lambda x: copysign(x, 1)
@@ -26,7 +26,7 @@ class SlidingOptimizerState:
             self.perimeter_tab.append(atom.support.compute_perimeter())
 
         sum_obs = np.array([np.sum(self.obs_tab[i], axis=0) for i in range(self.function.num_atoms)])
-        y_hat = np.sum(weights[:, np.newaxis, np.newaxis] * sum_obs, axis=0)
+        y_hat = np.sum(weights[:, None] * sum_obs, axis=0)
         self.diff_obs = y_hat - y
 
         self.obj = 0.5 * np.sum(self.diff_obs ** 2) + reg_param * np.sum(np.abs(weights) * self.perimeter_tab)
@@ -36,10 +36,20 @@ class SlidingOptimizerState:
             self.function.atoms[i].weight = new_weights[i]
 
     def update_boundary_vertices(self, new_boundary_vertices, f, y, reg_param):
+        max_num_boundary_faces = max(len(atom.support.mesh_boundary_faces) for atom in self.function.atoms)
+        obs = np.zeros((self.function.num_atoms, max_num_boundary_faces, f.grid_size))
+        meshes = np.zeros((self.function.num_atoms, max_num_boundary_faces, 3, 2))
+
         for i in range(self.function.num_atoms):
-            self.function.atoms[i].support.boundary_vertices = new_boundary_vertices[i]
-            support = self.function.atoms[i].support
-            self.obs_tab[i][support.mesh_boundary_faces_indices, :, :] = support.compute_weighted_area_tab(f, boundary_faces_only=True)
+            support_i = self.function.atoms[i].support
+            support_i.boundary_vertices = new_boundary_vertices[i]
+            meshes[i, :len(support_i.mesh_boundary_faces)] = support_i.mesh_vertices[support_i.mesh_boundary_faces]
+
+        f._triangle_aux(meshes, obs)
+
+        for i in range(self.function.num_atoms):
+            support_i = self.function.atoms[i].support
+            self.obs_tab[i][support_i.mesh_boundary_faces_indices, :] = obs[i, :len(support_i.mesh_boundary_faces)]
 
         self.update_obj(y, reg_param)
 
@@ -53,24 +63,37 @@ class SlidingOptimizerState:
         grad_boundary_vertices = []
         grad_norm_squared = 0
 
-        weights = self.function.weights
-        supports = self.function.supports
+        max_num_boundary_vertices = max(atom.support.num_boundary_vertices for atom in self.function.atoms)
+        grad_area_weights = np.zeros((self.function.num_atoms, max_num_boundary_vertices, f.grid_size, 2))
+        curves = np.zeros((self.function.num_atoms, max_num_boundary_vertices, 2))
 
         for i in range(self.function.num_atoms):
-            grad_weight = np.sum(np.sum(self.obs_tab[i], axis=0) * self.diff_obs) \
-                          + reg_param * sign(weights[i]) * self.perimeter_tab[i]
+            support_i = self.function.atoms[i].support
+            curves[i, :support_i.num_boundary_vertices, :] = support_i.boundary_vertices
+
+        f._line_aux(curves, grad_area_weights)
+
+        for i in range(self.function.num_atoms):
+            weight_i = self.function.atoms[i].weight
+            support_i = self.function.atoms[i].support
+
+            grad_weight = np.sum(np.sum(self.obs_tab[i], axis=0) * self.diff_obs) + \
+                          reg_param * sign(weight_i) * self.perimeter_tab[i]
             grad_weights.append(grad_weight)
 
             grad_norm_squared += grad_weight ** 2
 
-            grad_perimeter = supports[i].compute_perimeter_gradient()
-            grad_area = supports[i].compute_weighted_area_gradient(f)
-            grad_shape = np.sum(weights[i] * np.expand_dims(self.diff_obs, axis=(2, 3)) * grad_area, axis=(0, 1)) \
-                         + reg_param * fabs(weights[i]) * grad_perimeter
+            grad_perimeter = support_i.compute_perimeter_gradient()
+
+            num_boundary_vertices = support_i.num_boundary_vertices
+            grad_area = support_i.compute_weighted_area_gradient(f, weights=grad_area_weights[i, :num_boundary_vertices])
+
+            grad_shape = weight_i * np.sum(self.diff_obs[None, :, None] * grad_area, axis=1) + \
+                         reg_param * abs(weight_i) * grad_perimeter
 
             grad_boundary_vertices.append(grad_shape)
 
-            grad_norm_squared += np.linalg.norm(grad_boundary_vertices[i]) ** 2
+            grad_norm_squared += np.sum(grad_boundary_vertices[i] ** 2)
 
         return grad_weights, grad_boundary_vertices, grad_norm_squared
 
@@ -88,7 +111,7 @@ class SlidingOptimizer:
 
         self.state = None
 
-    def perform_linesearch(self, f, y, reg_param, grad_weights, grad_boundary_vertices, grad_norm_squared, no_linesearch=True):
+    def perform_linesearch(self, f, y, reg_param, grad_weights, grad_boundary_vertices, grad_norm_squared, no_linesearch=False):
         t = self.step_size
 
         ag_condition = False
@@ -96,6 +119,8 @@ class SlidingOptimizer:
         former_obj = self.state.obj
         former_weights = self.state.function.weights
         former_boundary_vertices = self.state.function.support_boundary_vertices
+
+        iteration = 0
 
         while not ag_condition:
             new_weights = np.array(former_weights) - t * np.array(grad_weights)
@@ -114,7 +139,15 @@ class SlidingOptimizer:
                 ag_condition = (new_obj <= former_obj - self.alpha * t * grad_norm_squared)
                 t = self.beta * t
 
-    def run(self, initial_function, f, reg_param, y):
+            iteration += 1
+
+        max_displacement = 0
+        for i in range(self.state.function.num_atoms):
+            max_displacement = max(max_displacement, np.max(np.linalg.norm(new_boundary_vertices[i] - former_boundary_vertices[i], axis=-1)))
+
+        return iteration, max_displacement
+
+    def run(self, initial_function, f, reg_param, y, verbose=True):
         convergence = False
         obj_tab = []
         grad_norm_tab = []
@@ -129,23 +162,28 @@ class SlidingOptimizer:
             grad_norm_tab.append(grad_norm_squared)
             obj_tab.append(self.state.obj)
 
-            self.perform_linesearch(f, y, reg_param, grad_weights, grad_boundary_vertices, grad_norm_squared)
+            n_iter_linesearch, max_displacement = self.perform_linesearch(f, y, reg_param, grad_weights, grad_boundary_vertices, grad_norm_squared, no_linesearch=False)
 
             iteration += 1
-            convergence = False
+            convergence = (max_displacement < self.eps_stop)
 
-        if self.num_iter_resampling is not None and iteration % self.num_iter_resampling == 0:
-            new_weights = []
-            new_sets = []
+            if verbose:
+                print("iteration {}: {} linesearch steps".format(iteration, n_iter_linesearch))
 
-            for atom in self.state.function.atoms:
-                new_weights.append(atom.weight)
-                new_boundary_vertices = resample(atom.support.boundary_vertices, num_points=self.num_points)
-                new_sets.append(SimpleSet(new_boundary_vertices, max_tri_area=self.max_tri_area))
+            if self.num_iter_resampling is not None and iteration % self.num_iter_resampling == 0:
 
-            new_function = SimpleFunction([WeightedIndicatorFunction(new_weights[i], new_sets[i])
-                                           for i in range(num_atoms)])
+                new_weights = []
+                new_sets = []
 
-            self.state.update_function(new_function, f, reg_param, y)
+                for atom in self.state.function.atoms:
+                    new_weights.append(atom.weight)
+                    new_boundary_vertices = resample(atom.support.boundary_vertices, num_points=self.num_points)
+                    new_set = SimpleSet(new_boundary_vertices, max_tri_area=self.max_tri_area)
+                    new_sets.append(new_set)
+
+                new_function = SimpleFunction([WeightedIndicatorFunction(new_weights[i], new_sets[i])
+                                               for i in range(num_atoms)])
+
+                self.state.update_function(new_function, f, reg_param, y)
 
         return self.state.function, obj_tab, grad_norm_tab
