@@ -81,4 +81,5 @@ class SimpleFunction:
 
         new_weights = lasso.coef_
         self.atoms = [WeightedIndicatorFunction(new_weights[i], self.atoms[i].support)
-                      for i in range(self.num_atoms) if np.abs(new_weights[i]) > 0.1]
+                      for i in range(self.num_atoms) if np.abs(new_weights[i]) > 1e-2]
+        # TODO: clean zero weight condition

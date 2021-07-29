@@ -3,3 +3,4 @@ from .sampled_gaussian_filter import *
 from .optimizer import SlidingOptimizer
 from .sfw import *
 from .utils import *
+from .fixed_grid import *

@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 
 
 def perform_sliding(initial_function, y, f, reg_param, step_size, max_iter, alpha, beta, eps_stop,
-                    num_points, num_iter_resampling, max_tri_area):
-    optimizer = SlidingOptimizer(step_size, max_iter, eps_stop, num_points, max_tri_area, num_iter_resampling,
-                                 alpha, beta)
+                    num_points, point_density, num_iter_resampling, max_tri_area):
+    optimizer = SlidingOptimizer(step_size, max_iter, eps_stop, num_points, point_density, max_tri_area,
+                                 num_iter_resampling, alpha, beta)
 
     new_function, obj_tab, grad_norm_tab = optimizer.run(initial_function, f, reg_param, y)
 

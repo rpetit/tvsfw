@@ -65,6 +65,14 @@ def test_line_integral():
     assert my_val[0, 0] == my_val[0, 1]
     assert my_val[1, 0] == my_val[1, 1]
 
+    eta = GaussianPolynomial(np.array([[0.0, 0.0]]), np.array([1.0]), std)
+    my_val_bis = eta.integrate_on_polygonal_curve(vertices)
+
+    assert my_val_bis[0, 0] == pytest.approx(my_val[0, 0], rel=1e-4)
+    assert my_val_bis[1, 0] == pytest.approx(my_val[1, 0], rel=1e-4)
+    assert my_val_bis[0, 0] == my_val[0, 1]
+    assert my_val_bis[1, 0] == my_val[1, 1]
+
 
 # # TODO: revoir...
 # def test_perimeter_grad():
@@ -154,4 +162,3 @@ def test_line_integral():
 #     finite_diff = (new_weighted_area - weighted_area - t * np.sum(grad * grad)) / t
 #
 #     assert abs(finite_diff) < 1e-4
-

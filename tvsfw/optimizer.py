@@ -66,12 +66,14 @@ class SlidingOptimizerState:
         max_num_boundary_vertices = max(atom.support.num_boundary_vertices for atom in self.function.atoms)
         grad_area_weights = np.zeros((self.function.num_atoms, max_num_boundary_vertices, f.grid_size, 2))
         curves = np.zeros((self.function.num_atoms, max_num_boundary_vertices, 2))
+        mask = np.zeros((self.function.num_atoms, max_num_boundary_vertices), dtype='bool')
 
         for i in range(self.function.num_atoms):
             support_i = self.function.atoms[i].support
             curves[i, :support_i.num_boundary_vertices, :] = support_i.boundary_vertices
+            mask[i, :support_i.num_boundary_vertices] = True
 
-        f._line_aux(curves, grad_area_weights)
+        f._line_aux(curves, mask, grad_area_weights)
 
         for i in range(self.function.num_atoms):
             weight_i = self.function.atoms[i].weight
@@ -99,11 +101,14 @@ class SlidingOptimizerState:
 
 
 class SlidingOptimizer:
-    def __init__(self, step_size, max_iter, eps_stop, num_points, max_tri_area, num_iter_resampling, alpha, beta):
+    def __init__(self, step_size, max_iter, eps_stop, num_points, point_density, max_tri_area, num_iter_resampling,
+                 alpha, beta):
+
         self.step_size = step_size
         self.max_iter = max_iter
         self.eps_stop = eps_stop
         self.num_points = num_points
+        self.point_density = point_density
         self.max_tri_area = max_tri_area
         self.num_iter_resampling = num_iter_resampling
         self.alpha = alpha
@@ -171,13 +176,13 @@ class SlidingOptimizer:
                 print("iteration {}: {} linesearch steps".format(iteration, n_iter_linesearch))
 
             if self.num_iter_resampling is not None and iteration % self.num_iter_resampling == 0:
-
                 new_weights = []
                 new_sets = []
 
                 for atom in self.state.function.atoms:
                     new_weights.append(atom.weight)
-                    new_boundary_vertices = resample(atom.support.boundary_vertices, num_points=self.num_points)
+                    new_boundary_vertices = resample(atom.support.boundary_vertices, num_points=self.num_points,
+                                                     point_density=self.point_density)
                     new_set = SimpleSet(new_boundary_vertices, max_tri_area=self.max_tri_area)
                     new_sets.append(new_set)
 

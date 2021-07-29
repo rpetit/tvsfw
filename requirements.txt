@@ -1,0 +1,8 @@
+numpy
+scipy
+matplotlib
+quadpy
+triangle
+numba
+celer
+pycheeger
