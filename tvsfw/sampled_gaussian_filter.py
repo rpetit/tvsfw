@@ -138,7 +138,14 @@ class SampledGaussianFilter:
     def integrate_on_curves(self, curves):
         max_num_vertices = max([len(vertices) for vertices in curves])
         res = np.zeros((len(curves), max_num_vertices, self.grid_size, 2))
-        self._line_aux(curves, res)
+        curves_array = np.zeros((len(curves), max_num_vertices, 2))
+        mask = np.zeros((len(curves), max_num_vertices), dtype='bool')
+
+        for i in range(len(curves)):
+            curves_array[i, :len(curves[i]), :] = curves[i]
+            mask[i, :len(curves[i])] = True
+
+        self._line_aux(curves_array, mask, res)
         return [res[i, :len(curves[i])] for i in range(len(curves))]
 
     def apply_adjoint(self, weights):
