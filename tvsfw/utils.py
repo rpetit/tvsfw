@@ -4,7 +4,7 @@ import itertools
 
 from scipy import interpolate
 from shapely.geometry import Polygon
-from .simple_function import SimpleFunction, WeightedIndicatorFunction
+# from .simple_function import SimpleFunction, WeightedIndicatorFunction
 
 import matplotlib.ticker as tick
 from matplotlib import rc
@@ -12,15 +12,15 @@ rc('font', **{'family': 'serif', 'serif': ['Computer Modern'], 'size': 30})
 rc('text', usetex=True)
 
 
-def simple_function_diff(u, v):
-    atoms = []
-
-    for atom in u.atoms:
-        atoms.append(atom)
-    for atom in v.atoms:
-        atoms.append(WeightedIndicatorFunction(-atom.weight, atom.support))
-
-    return SimpleFunction(atoms)
+# def simple_function_diff(u, v):
+#     atoms = []
+#
+#     for atom in u.atoms:
+#         atoms.append(atom)
+#     for atom in v.atoms:
+#         atoms.append(WeightedIndicatorFunction(-atom.weight, atom.support))
+#
+#     return SimpleFunction(atoms)
 
 
 def plot_simple_function_aux(f, ax, m):

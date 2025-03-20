@@ -62,7 +62,6 @@ def run_primal_dual(grid_size, y, phi, reg_param, max_iter=10000, convergence_to
     tau = 1/L
     sigma = 1/tau/L**2
 
-
     p = np.zeros((grid_size + 1, grid_size + 1, 2))  # first dual variable
     q = np.zeros(num_obs)  # second dual variable
     u = np.zeros((grid_size + 2, grid_size + 2))  # primal variable
