@@ -8,7 +8,7 @@ from shapely.geometry import Polygon
 
 import matplotlib.ticker as tick
 from matplotlib import rc
-rc('font', **{'family': 'serif', 'serif': ['Computer Modern'], 'size': 30})
+rc('font', **{'family': 'serif', 'serif': ['Computer Modern'], 'size': 20})
 rc('text', usetex=True)
 
 
@@ -25,6 +25,7 @@ rc('text', usetex=True)
 
 def plot_simple_function_aux(f, ax, m):
     ax.fill([-1, 1, 1, -1], [-1, -1, 1, 1], color=m.to_rgba(0))
+    # ax.fill([-1, 1, 1, -1], [-1, -1, 1, 1], color=m.to_rgba(0.5764705882352941))
 
     n = f.num_atoms
     idx_set = set(list(range(n)))
@@ -32,6 +33,7 @@ def plot_simple_function_aux(f, ax, m):
     for k in range(1, n + 1):
         for indices in itertools.combinations(idx_set, k):
             p = Polygon([(-1, -1), (1, -1), (1, 1), (-1, 1)])
+            # weight = 0.5764705882352941
             weight = 0
             for i in indices:
                 points_i = f.atoms[i].support.boundary_vertices
@@ -67,7 +69,7 @@ def plot_simple_function(f, m, save_path=None):
 
     cbar = fig.colorbar(m, ax=ax, fraction=0.046, pad=0.04, format=tick.FormatStrFormatter('%.2f'))
     cbar.ax.tick_params(labelsize=30)
-    cbar.set_ticks([-1, 0, 1])
+    # cbar.set_ticks([-1, 0, 1])
 
     plt.tight_layout()
 
@@ -119,7 +121,7 @@ def interpolate_points(input_points):
 
     tck, u = interpolate.splprep([x, y], s=0, per=0)
 
-    unew = np.linspace(0, 1.0, 100)
+    unew = np.linspace(0, 1.0, 1000)
 
     out = interpolate.splev(unew, tck)
 

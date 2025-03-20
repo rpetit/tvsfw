@@ -164,7 +164,7 @@ class SlidingOptimizer:
 
         while not convergence and iteration < self.max_iter:
             grad_weights, grad_boundary_vertices, grad_norm_squared = self.state.compute_gradient(f, reg_param)
-            grad_norm_tab.append(grad_norm_squared)
+            grad_norm_tab.append(np.sqrt(grad_norm_squared))
             obj_tab.append(self.state.obj)
 
             n_iter_linesearch, max_displacement = self.perform_linesearch(f, y, reg_param, grad_weights, grad_boundary_vertices, grad_norm_squared, no_linesearch=False)

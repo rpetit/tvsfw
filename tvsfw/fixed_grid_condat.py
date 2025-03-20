@@ -215,9 +215,10 @@ def run_primal_dual(y, dsampling_factor, kernel, reg_param, max_iter=10000):
     v[4*n*n:5*n*n] = tmp[n*n:]
 
     d_norm = np.sqrt(8)
-    mu = 3.0
-    tau = 0.99 / (d_norm ** 2 + mu)
+    mu = 1.0
+    tau = 0.99 / d_norm**2
     gamma = 0.99 / 3
+
 
     convergence = False
     n_iter = 0
@@ -246,13 +247,11 @@ def run_primal_dual(y, dsampling_factor, kernel, reg_param, max_iter=10000):
               + reg_param * tv
         obj_tab.append(obj)
 
-        n_iter += 1
-
         if n_iter % 1000 == 0:
             fig, ax = plt.subplots(figsize=(7, 7))
             ax.set_aspect('equal')
 
-            im = ax.imshow(x.reshape(n, n), vmin=-1.1, vmax=1.1,
+            im = ax.imshow(x.reshape(n, n), vmin=-3.1, vmax=3.1,
                            origin='lower', cmap='bwr')
 
             cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -264,6 +263,8 @@ def run_primal_dual(y, dsampling_factor, kernel, reg_param, max_iter=10000):
 
             # plt.plot(obj_tab)
             # plt.show()
+
+        n_iter += 1
 
         convergence = n_iter > max_iter
 
